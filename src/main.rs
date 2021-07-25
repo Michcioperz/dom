@@ -101,7 +101,7 @@ fn episodes_subview(
     mut episodes: Vec<Episode>,
     refresh: Box<dyn Fn(&mut Cursive)>,
 ) -> impl cursive::View {
-    episodes.sort_by(|a, b| a.published_at.cmp(&b.published_at));
+    episodes.sort_by(|a, b| a.published_at.cmp(&b.published_at).reverse());
     cursive::views::SelectView::new()
         .with_all(episodes.into_iter().map(|ep| {
             (
