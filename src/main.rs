@@ -162,6 +162,7 @@ fn podcast_view(db: Db, podcast: Podcast) -> anyhow::Result<impl cursive::View> 
 
 fn get_backend(name: &str) -> &'static dyn FetchingBackend {
     match name {
+        "rss" => dom_rss::FETCHING_BACKEND,
         #[cfg(feature = "radio357")]
         "radio357" => dom_radio357::FETCHING_BACKEND,
         _ => panic!("unknown backend: {}", name),
@@ -170,6 +171,7 @@ fn get_backend(name: &str) -> &'static dyn FetchingBackend {
 
 fn discovery_selector(db: Db) -> impl cursive::View {
     let mut view = cursive::views::SelectView::<&'static dyn DiscoveryBackend>::new().autojump();
+    view = view.item("Michcio's picks", dom_michcio::DISCOVERY_BACKEND);
     #[cfg(feature = "radio357")]
     {
         view = view.item("Radio 357", dom_radio357::DISCOVERY_BACKEND);

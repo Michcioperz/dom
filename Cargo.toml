@@ -19,6 +19,8 @@ anyhow = "1"
 chrono = "0.4"
 cursive = { version = "0.17.0-alpha.0", default-features = false, features = ["toml"] }
 dom_api = { path = "./dom_api" }
+dom_michcio = { path = "./dom_michcio" }
+dom_rss = { path = "./dom_rss" }
 sled = "0.34.6"
 xdg = "2.2"
 
