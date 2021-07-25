@@ -13,13 +13,12 @@ fn is_gui() -> bool {
 
 fn listen(db: Db, url: &str) -> anyhow::Result<()> {
     let mut cmd = std::process::Command::new("mpv");
-    let cmd = cmd
-        .arg(url)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    let cmd = cmd.arg(url);
     if is_gui() {
         cmd.arg("--force-window")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
     } else {
         cmd
     }
