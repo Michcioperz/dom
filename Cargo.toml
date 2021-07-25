@@ -6,4 +6,14 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["cursive/termion-backend"]
+
 [dependencies]
+anyhow = "1.0.42"
+chrono = "0.4.19"
+cursive = { version = "0.17.0-alpha.0", default-features = false, features = ["toml"] }
+minreq = { version = "2.4.2", default-features = false, features = ["https-rustls", "json-using-serde"] }
+serde = { version = "1.0.126", features = ["derive"] }
+sled = "0.34.6"
+xdg = "2.2.0"
