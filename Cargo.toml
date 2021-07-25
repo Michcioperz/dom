@@ -7,7 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["cursive/termion-backend", "radio357"]
+default = ["cursive/termion-backend"]
+
+# comment if you don't have access to relevant code
 radio357 = ["dom_radio357"]
 
 [dependencies]
@@ -15,6 +17,8 @@ anyhow = "1"
 chrono = "0.4"
 cursive = { version = "0.17.0-alpha.0", default-features = false, features = ["toml"] }
 dom_api = { path = "./dom_api" }
-dom_radio357 = { path = "./dom_radio357", optional = true }
 sled = "0.34.6"
 xdg = "2.2"
+
+# comment if you don't have access to relevant code
+dom_radio357 = { path = "./dom_radio357", optional = true }
