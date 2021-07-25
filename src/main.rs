@@ -172,10 +172,7 @@ fn discovery_selector<'a>(db: Db) -> impl cursive::View {
     let mut view = cursive::views::SelectView::<&'static dyn DiscoveryBackend>::new().autojump();
     #[cfg(feature = "radio357")]
     {
-        view = view.item(
-            "Radio 357",
-            dom_radio357::DISCOVERY_BACKEND,
-        );
+        view = view.item("Radio 357", dom_radio357::DISCOVERY_BACKEND);
     }
     view = view.on_submit(move |siv, backend: &&'static dyn DiscoveryBackend| {
         let db = db.clone();
@@ -207,7 +204,6 @@ fn main_menu(db: Db) -> impl cursive::View {
         Beloved,
         Timekilling,
         Undiscovered,
-        Exit,
     }
     cursive::views::Dialog::around(
         cursive::views::SelectView::new()
@@ -215,17 +211,14 @@ fn main_menu(db: Db) -> impl cursive::View {
             .item("Beloved", Action::Beloved)
             .item("Timekilling", Action::Timekilling)
             .item("Undiscovered", Action::Undiscovered)
-            .item("Exit", Action::Exit)
             .on_submit(move |siv, action| match *action {
                 Action::Beloved => siv.add_layer(group_view(db.clone(), "beloved")),
                 Action::Timekilling => siv.add_layer(group_view(db.clone(), "timekilling")),
                 Action::Undiscovered => siv.add_layer(discovery_selector(db.clone())),
-                Action::Exit => {
-                    siv.quit();
-                }
             }),
     )
     .title("Main menu")
+    .button("Exit", |siv| siv.quit())
 }
 
 fn main() -> anyhow::Result<()> {
