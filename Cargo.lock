@@ -196,10 +196,29 @@ dependencies = [
  "anyhow",
  "chrono",
  "cursive",
- "minreq",
- "serde",
+ "dom_api",
+ "dom_radio357",
  "sled",
  "xdg",
+]
+
+[[package]]
+name = "dom_api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+]
+
+[[package]]
+name = "dom_radio357"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dom_api",
+ "minreq",
+ "serde",
 ]
 
 [[package]]

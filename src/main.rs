@@ -1,9 +1,7 @@
 use std::process::Stdio;
 
-use chrono::prelude::{DateTime, Local};
 use cursive::{traits::Scrollable, Cursive};
-
-mod radio357;
+use dom_api::*;
 
 const XDG_PREFIX: &str = "dom314";
 
@@ -162,81 +160,42 @@ fn podcast_view(db: Db, podcast: Podcast) -> anyhow::Result<impl cursive::View> 
     Ok(dialog.dismiss_button("Go back"))
 }
 
-#[derive(Debug, Clone)]
-pub struct Podcast {
-    backend: &'static str,
-    feed_url: String,
-    title: String,
-    description: String,
-}
-
-trait DiscoveryBackend {
-    fn discovery(&self) -> anyhow::Result<Vec<Podcast>>;
-
-    fn search(&self, query: &str) -> anyhow::Result<Vec<Podcast>> {
-        self.discovery().map(|vec| {
-            vec.into_iter()
-                .filter(|pod| pod.title.contains(query) || pod.description.contains(query))
-                .collect()
-        })
-    }
-}
-
-pub struct Episode {
-    podcast: String,
-    title: String,
-    description: String,
-    published_at: DateTime<Local>,
-    audio_url: String,
-}
-
-trait FetchingBackend {
-    fn fetch_feed(&self, url: &str) -> anyhow::Result<Vec<Episode>>;
-}
-
-fn get_backend(name: &str) -> Box<dyn FetchingBackend> {
+fn get_backend(name: &str) -> &'static dyn FetchingBackend {
     match name {
-        // TODO: feature
-        "radio357" => Box::new(radio357::Radio357::new()),
+        #[cfg(feature = "radio357")]
+        "radio357" => dom_radio357::FETCHING_BACKEND,
         _ => panic!("unknown backend: {}", name),
     }
 }
 
-fn discovery_selector(db: Db) -> impl cursive::View {
-    let mut view = cursive::views::SelectView::new().autojump();
-    // TODO: feature
+fn discovery_selector<'a>(db: Db) -> impl cursive::View {
+    let mut view = cursive::views::SelectView::<&'static dyn DiscoveryBackend>::new().autojump();
+    #[cfg(feature = "radio357")]
     {
         view = view.item(
             "Radio 357",
-            Some(Box::new(radio357::Radio357::new()) as Box<dyn DiscoveryBackend>),
+            dom_radio357::DISCOVERY_BACKEND,
         );
     }
-    view = view.on_submit(move |siv, choice| match choice {
-        None => {
-            siv.pop_layer();
-        }
-        // TODO: feature
-        Some(backend) => {
-            let db = db.clone();
-            let backend_list = cursive::views::SelectView::new()
-                .autojump()
-                // TODO: remove unwrap
-                .with_all(
-                    backend
-                        .discovery()
-                        .unwrap()
-                        .into_iter()
-                        .map(|pod| (pod.title.clone(), pod)),
-                )
-                .on_submit(move |siv, pod| {
-                    siv.add_layer(podcast_view(db.clone(), pod.clone()).unwrap());
-                })
-                .scrollable();
-            let backend_view = cursive::views::Dialog::around(backend_list)
-                .title("New podcasts")
-                .dismiss_button("Go back");
-            siv.add_layer(backend_view);
-        }
+    view = view.on_submit(move |siv, backend: &&'static dyn DiscoveryBackend| {
+        let db = db.clone();
+        let backend_list = cursive::views::SelectView::new()
+            .autojump()
+            .with_all(
+                backend
+                    .discovery()
+                    .unwrap()
+                    .into_iter()
+                    .map(|pod| (pod.title.clone(), pod)),
+            )
+            .on_submit(move |siv, pod| {
+                siv.add_layer(podcast_view(db.clone(), pod.clone()).unwrap());
+            })
+            .scrollable();
+        let backend_view = cursive::views::Dialog::around(backend_list)
+            .title("New podcasts")
+            .dismiss_button("Go back");
+        siv.add_layer(backend_view);
     });
     cursive::views::Dialog::around(view)
         .title("Discovery backends")
