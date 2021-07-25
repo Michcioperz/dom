@@ -116,7 +116,7 @@ fn episodes_subview(
                     &ep.podcast,
                     &ep.title,
                 ),
-                ep.audio_url.clone(),
+                ep.audio_url,
             )
         }))
         .on_submit(move |siv, url| {
@@ -168,7 +168,7 @@ fn get_backend(name: &str) -> &'static dyn FetchingBackend {
     }
 }
 
-fn discovery_selector<'a>(db: Db) -> impl cursive::View {
+fn discovery_selector(db: Db) -> impl cursive::View {
     let mut view = cursive::views::SelectView::<&'static dyn DiscoveryBackend>::new().autojump();
     #[cfg(feature = "radio357")]
     {
@@ -228,7 +228,7 @@ fn main() -> anyhow::Result<()> {
         None => {}
         Some(theme_path) => siv.load_theme_file(theme_path).unwrap(),
     }
-    siv.add_layer(main_menu(db.clone()));
+    siv.add_layer(main_menu(db));
     siv.run();
     Ok(())
 }
