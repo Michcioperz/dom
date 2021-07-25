@@ -11,8 +11,8 @@ lto = "thin"
 [features]
 default = ["cursive/termion-backend"]
 
-# comment if you don't have access to relevant code
-radio357 = ["dom_radio357"]
+# uncomment if you have access to relevant code
+# radio357 = ["dom_radio357"]
 
 [dependencies]
 anyhow = "1"
@@ -24,5 +24,5 @@ dom_rss = { path = "./dom_rss" }
 sled = "0.34.6"
 xdg = "2.2"
 
-# comment if you don't have access to relevant code
-dom_radio357 = { path = "./dom_radio357", optional = true }
+# uncomment if you have access to relevant code
+# dom_radio357 = { path = "./dom_radio357", optional = true }

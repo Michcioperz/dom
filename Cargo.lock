@@ -207,7 +207,6 @@ dependencies = [
  "cursive",
  "dom_api",
  "dom_michcio",
- "dom_radio357",
  "dom_rss",
  "sled",
  "xdg",
@@ -228,17 +227,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "dom_api",
-]
-
-[[package]]
-name = "dom_radio357"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dom_api",
- "minreq",
- "serde",
 ]
 
 [[package]]
@@ -473,8 +461,6 @@ dependencies = [
  "lazy_static",
  "log",
  "rustls",
- "serde",
- "serde_json",
  "webpki",
  "webpki-roots",
 ]
