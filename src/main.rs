@@ -108,13 +108,15 @@ fn episodes_subview(
         .with_all(episodes.into_iter().map(|ep| {
             (
                 format!(
-                    "{}{}",
+                    "{} [{}] [{}] {}",
                     if db.was_listened(&ep.audio_url).unwrap() {
                         "   "
                     } else {
                         "[*]"
                     },
-                    ep.title.clone()
+                    ep.published_at.date().naive_local(),
+                    &ep.podcast,
+                    &ep.title,
                 ),
                 ep.audio_url.clone(),
             )
@@ -181,6 +183,7 @@ trait DiscoveryBackend {
 }
 
 pub struct Episode {
+    podcast: String,
     title: String,
     description: String,
     published_at: DateTime<Local>,
