@@ -1,6 +1,6 @@
 use std::process::Stdio;
 
-use cursive::{traits::Scrollable, Cursive};
+use cursive::{event::EventResult, traits::Scrollable, Cursive};
 use dom_api::*;
 
 const XDG_PREFIX: &str = "dom314";
@@ -9,7 +9,7 @@ fn is_gui() -> bool {
     std::env::var_os("DISPLAY").is_some()
 }
 
-fn listen(db: Db, url: &str) -> anyhow::Result<()> {
+fn listen(db: &Db, url: &str) -> anyhow::Result<()> {
     let mut cmd = std::process::Command::new("mpv");
     let cmd = cmd.arg(url);
     if is_gui() {
@@ -21,7 +21,7 @@ fn listen(db: Db, url: &str) -> anyhow::Result<()> {
         cmd
     }
     .spawn()?;
-    db.inner.open_tree("listened")?.insert(url, "")?;
+    db.mark_listened(url, true)?;
     Ok(())
 }
 
@@ -40,6 +40,13 @@ impl Db {
 
     fn was_listened(&self, url: &str) -> anyhow::Result<bool> {
         Ok(self.inner.open_tree("listened")?.contains_key(url)?)
+    }
+
+    fn mark_listened(&self, url: &str, value: bool) -> anyhow::Result<()> {
+        self.inner
+            .open_tree("listened")?
+            .fetch_and_update(url, |_| if value { Some("") } else { None })?;
+        Ok(())
     }
 
     fn is_in_group(&self, group: &'static str, url: &str) -> anyhow::Result<bool> {
@@ -87,6 +94,7 @@ fn group_view(db: Db, group: &'static str) -> impl cursive::View {
     cursive::views::Dialog::around(episodes_subview(
         db.clone(),
         episodes,
+        true,
         Box::new(move |siv| {
             siv.pop_layer();
             siv.add_layer(group_view(db.clone(), group));
@@ -99,34 +107,70 @@ fn group_view(db: Db, group: &'static str) -> impl cursive::View {
 fn episodes_subview(
     db: Db,
     mut episodes: Vec<Episode>,
+    only_unlistened: bool,
     refresh: Box<dyn Fn(&mut Cursive)>,
 ) -> impl cursive::View {
     episodes.sort_by(|a, b| a.published_at.cmp(&b.published_at).reverse());
-    cursive::views::SelectView::new()
-        .with_all(episodes.into_iter().map(|ep| {
-            (
-                format!(
-                    "{} [{}] [{}] {}",
-                    if db.was_listened(&ep.audio_url).unwrap() {
-                        "   "
-                    } else {
-                        "[*]"
-                    },
-                    ep.published_at.date().naive_local(),
-                    &ep.podcast,
-                    &ep.title,
-                ),
-                ep.audio_url,
+    cursive::views::OnEventView::new(
+        cursive::views::SelectView::new()
+            .with_all(
+                episodes
+                    .into_iter()
+                    .filter(|ep| !only_unlistened || !db.was_listened(&ep.audio_url).unwrap())
+                    .map(|ep| {
+                        (
+                            format!(
+                                "{}[{}] [{}] {}",
+                                if only_unlistened {
+                                    ""
+                                } else if db.was_listened(&ep.audio_url).unwrap() {
+                                    "    "
+                                } else {
+                                    "[*] "
+                                },
+                                ep.published_at.date().naive_local(),
+                                &ep.podcast,
+                                &ep.title,
+                            ),
+                            ep.audio_url,
+                        )
+                    }),
             )
-        }))
-        .on_submit(move |siv, url| {
-            listen(db.clone(), url).unwrap();
-            refresh(siv);
-        })
-        .scrollable()
+            .on_submit({
+                let db = db.clone();
+                move |siv, url| {
+                    listen(&db, url).unwrap();
+                    refresh(siv);
+                }
+            }),
+    )
+    .on_event_inner('r', {
+        let db = db.clone();
+        move |view, _ev| {
+            let db = db.clone();
+            view.selection().map(|ep| {
+                EventResult::with_cb(move |_siv| {
+                    db.clone().mark_listened(&ep.clone(), true).unwrap();
+                    // TODO: refresh
+                })
+            })
+        }
+    })
+    .on_event_inner('R', {
+        move |view, _ev| {
+            let db = db.clone();
+            view.selection().map(|ep| {
+                EventResult::with_cb(move |_siv| {
+                    db.clone().mark_listened(&ep.clone(), false).unwrap();
+                    // TODO: refresh
+                })
+            })
+        }
+    })
+    .scrollable()
 }
 
-fn podcast_view(db: Db, podcast: Podcast) -> anyhow::Result<impl cursive::View> {
+fn podcast_view(db: &Db, podcast: &Podcast) -> anyhow::Result<impl cursive::View> {
     let intro = cursive::views::TextView::new(podcast.description.clone());
     let episodes_list = get_backend(podcast.backend).fetch_feed(&podcast.feed_url)?;
     let mut dialog = cursive::views::Dialog::around(
@@ -134,12 +178,12 @@ fn podcast_view(db: Db, podcast: Podcast) -> anyhow::Result<impl cursive::View> 
             .child("Metadata", intro)
             .child(
                 "Episodes",
-                episodes_subview(db.clone(), episodes_list, {
+                episodes_subview(db.clone(), episodes_list, false, {
                     let db = db.clone();
                     let podcast = podcast.clone();
                     Box::new(move |siv| {
                         siv.pop_layer();
-                        siv.add_layer(podcast_view(db.clone(), podcast.clone()).unwrap());
+                        siv.add_layer(podcast_view(&db, &podcast.clone()).unwrap());
                     })
                 }),
             ),
@@ -154,7 +198,7 @@ fn podcast_view(db: Db, podcast: Podcast) -> anyhow::Result<impl cursive::View> 
             db.change_subscription(group, &podcast.feed_url, podcast.backend, !subscribed)
                 .unwrap();
             siv.pop_layer();
-            siv.add_layer(podcast_view(db.clone(), podcast.clone()).unwrap());
+            siv.add_layer(podcast_view(&db, &podcast.clone()).unwrap());
         });
     }
     Ok(dialog.dismiss_button("Go back"))
@@ -188,7 +232,7 @@ fn discovery_selector(db: Db) -> impl cursive::View {
                     .map(|pod| (pod.title.clone(), pod)),
             )
             .on_submit(move |siv, pod| {
-                siv.add_layer(podcast_view(db.clone(), pod.clone()).unwrap());
+                siv.add_layer(podcast_view(&db, &pod.clone()).unwrap());
             })
             .scrollable();
         let backend_view = cursive::views::Dialog::around(backend_list)
@@ -220,7 +264,7 @@ fn main_menu(db: Db) -> impl cursive::View {
             }),
     )
     .title("Main menu")
-    .button("Exit", |siv| siv.quit())
+    .button("Exit", Cursive::quit)
 }
 
 fn main() -> anyhow::Result<()> {
