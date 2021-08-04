@@ -15,9 +15,12 @@ default = ["cursive/termion-backend"]
 anyhow = "1"
 chrono = "0.4"
 cursive = { version = "0.17.0-alpha.0", default-features = false, features = ["toml"] }
+dashmap = "4"
 dom_api = { path = "../dom_api" }
 dom_michcio = { path = "../dom_michcio" }
 dom_rss = { path = "../dom_rss" }
+lazy_static = "1.4.0"
+rayon = "1.5"
 sled = "0.34.6"
 xdg = "2.2"
 

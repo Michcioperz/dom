@@ -1,7 +1,7 @@
-use std::process::Stdio;
-
 use cursive::{event::EventResult, traits::Scrollable, Cursive};
+use dashmap::DashMap;
 use dom_api::*;
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 const XDG_PREFIX: &str = "dom314";
 
@@ -10,6 +10,7 @@ fn is_gui() -> bool {
 }
 
 fn listen(db: &Db, url: &str) -> anyhow::Result<()> {
+    use std::process::Stdio;
     let mut cmd = std::process::Command::new("mpv");
     let cmd = cmd.arg(url);
     if is_gui() {
@@ -84,11 +85,25 @@ impl Db {
     }
 }
 
+lazy_static::lazy_static! {
+    static ref FEED_CACHE: DashMap<String, Vec<Episode>> = DashMap::new();
+}
+
+fn fetch_feed(backend: &str, url: &str) -> Result<Vec<Episode>, anyhow::Error> {
+    match FEED_CACHE.get(url) {
+        Some(episodes) => Ok(episodes.clone()),
+        None => Ok(FEED_CACHE
+            .entry(url.to_string())
+            .or_insert_with(|| get_backend(backend).fetch_feed(url).unwrap())
+            .clone()),
+    }
+}
+
 fn group_view(db: Db, group: &'static str) -> impl cursive::View {
     let feeds = db.list_subscriptions(group).unwrap();
     let feeds_contents: Result<Vec<_>, _> = feeds
-        .into_iter()
-        .map(|(url, backend)| get_backend(&backend).fetch_feed(&url))
+        .into_par_iter()
+        .map(|(url, backend)| fetch_feed(&backend, &url))
         .collect();
     let episodes = feeds_contents.unwrap().into_iter().flatten().collect();
     cursive::views::Dialog::around(episodes_subview(
@@ -172,7 +187,7 @@ fn episodes_subview(
 
 fn podcast_view(db: &Db, podcast: &Podcast) -> anyhow::Result<impl cursive::View> {
     let intro = cursive::views::TextView::new(podcast.description.clone());
-    let episodes_list = get_backend(podcast.backend).fetch_feed(&podcast.feed_url)?;
+    let episodes_list = fetch_feed(podcast.backend, &podcast.feed_url)?;
     let mut dialog = cursive::views::Dialog::around(
         cursive::views::ListView::new()
             .child("Metadata", intro)
@@ -264,6 +279,7 @@ fn main_menu(db: Db) -> impl cursive::View {
             }),
     )
     .title("Main menu")
+    .button("Wipe cache", |_| FEED_CACHE.clear())
     .button("Exit", Cursive::quit)
 }
 
